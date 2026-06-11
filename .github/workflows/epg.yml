@@ -7,9 +7,11 @@ on:
   # Permite ejecutarlo manualmente desde la pestaña Actions.
   workflow_dispatch:
 
-# Necesario para que el workflow pueda hacer commit del EPG al repo.
+# contents: write  -> permite commitear el EPG al repo.
+# actions:  write  -> permite que keepalive evite que el cron se desactive.
 permissions:
   contents: write
+  actions: write
 
 # Evita ejecuciones solapadas si una tarda más de lo normal.
 concurrency:
@@ -54,3 +56,7 @@ jobs:
             git commit -m "EPG actualizado $(date -u '+%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      # Evita que GitHub desactive el cron por inactividad (regla de ~60 días).
+      - name: Keepalive
+        uses: gautamkrishnar/keepalive-workflow@v2
