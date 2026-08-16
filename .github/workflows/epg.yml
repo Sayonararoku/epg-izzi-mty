@@ -1,17 +1,15 @@
 name: Generar EPG izzi Monterrey
 
 on:
-  # Cada 24 horas (05:00 UTC = 23:00 hora centro MX). Ajusta la hora si quieres.
+  # Cada 24 horas (05:00 UTC = 23:00 hora centro MX).
   schedule:
     - cron: "0 5 * * *"
-  # Permite ejecutarlo manualmente desde la pestaña Actions.
   workflow_dispatch:
 
-# Necesario para que el workflow pueda hacer commit del EPG al repo.
+# Necesario para publicar el EPG en la rama "epg".
 permissions:
   contents: write
 
-# Evita ejecuciones solapadas si una tarda más de lo normal.
 concurrency:
   group: epg-monterrey
   cancel-in-progress: false
@@ -19,12 +17,12 @@ concurrency:
 jobs:
   build-epg:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     env:
       EPG_OUTPUT_DIR: "."
       EPG_FILENAME: "izzimty.xml"
-      EPG_DAYS: "7"
+      EPG_DAYS: "15"
       EPG_REGION: "Monterrey"
 
     steps:
@@ -43,14 +41,18 @@ jobs:
       - name: Generar EPG
         run: python epg_monterrey.py
 
-      - name: Commit del EPG al repo
+      - name: Publicar EPG en la rama "epg"
         run: |
+          set -e
+          ls -lh izzimty.xml.gz
+
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f izzimty.xml izzimty.xml.gz
-          if git diff --cached --quiet; then
-            echo "Sin cambios en el EPG; no se hace commit."
-          else
-            git commit -m "EPG actualizado $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push
-          fi
+
+          # Rama huérfana reescrita en cada corrida: siempre 1 commit y 1 archivo,
+          # así el repositorio no crece aunque el EPG se publique todos los días.
+          git checkout --orphan epg-pub
+          git rm -rf --cached . > /dev/null
+          git add -f izzimty.xml.gz
+          git commit -m "EPG $(date -u '+%Y-%m-%d %H:%M UTC') (15 días)"
+          git push --force origin epg-pub:epg
